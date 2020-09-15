@@ -12,7 +12,7 @@ def vakif_yatirim():
     from itertools import chain
     from selenium import webdriver
     from fuzzywuzzy import process
-    from datetime import datetime
+    import datetime
 
     print('Modules imported.')
 
@@ -85,6 +85,7 @@ def vakif_yatirim():
     filename = f"vakıf_{today}.pdf"
     open(filename, 'wb').write(r.content)
     print(f"PDF is downloaded from {url}")
+    driver.close()
 
     # PDF'i text'e yazdırma
     vakif_text_list_1 = [pdf_to_text(filename)]
@@ -175,7 +176,7 @@ def vakif_yatirim():
     df['news'] = df['news'].replace('   ', ' ', regex=True)
 
     # ID Number yazdırma
-    old_df = pd.read_csv("ortak.csv")
+    old_df = pd.read_csv("sirket_haberleri.csv")
     last_id = old_df['id_number'].iloc[-1]
     df['id_number'] = range(last_id + 1, last_id + 1 + len(df))
     df = df[['id_number', 'date_list', 'codes', 'news', 'araci_kurum', 'timestamp', 'link']]

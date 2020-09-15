@@ -181,7 +181,7 @@ def oyak_yatirim():
 
     df = df[['id_number', 'date_list', 'codes', 'news', 'araci_kurum', 'timestamp', 'link']]
 
-    df.to_csv("sirket_haberleri.csv", encoding="utf-8", index=False, header=False, mode='a')
+    df.to_csv("sirket_haberleri.csv", encoding="utf-8", index=False)
 
     print("Oyak Yatırım Menkul Değerler is completed.")
 

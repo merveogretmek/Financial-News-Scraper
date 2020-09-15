@@ -84,6 +84,7 @@ def piramit_yatirim():
     filename = f"piramit_{today}.pdf"
     open(filename, 'wb').write(r.content)
     print(f"PDF is downloaded from {url}")
+    driver.close()
 
     # PDF'i text'e yazdırma
     piramit_text_list_1 = [pdf_to_text(filename)]
@@ -177,7 +178,9 @@ def piramit_yatirim():
     df['news'] = df['news'].replace('   ', ' ', regex=True)
 
     # ID Number yazdırma
-    df['id_number'] = range(1, 1 + len(df))
+    old_df = pd.read_csv("sirket_haberleri.csv")
+    last_id = old_df['id_number'].iloc[-1]
+    df['id_number'] = range(last_id + 1, last_id + 1 + len(df))
 
     df = df[['id_number', 'date_list', 'codes', 'news', 'araci_kurum', 'timestamp', 'link']]
 

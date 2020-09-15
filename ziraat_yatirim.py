@@ -12,7 +12,7 @@ def ziraat_yatirim():
     from itertools import chain
     from selenium import webdriver
     from fuzzywuzzy import process
-    from datetime import datetime
+    import datetime
 
     print('Modules imported.')
 
@@ -174,8 +174,8 @@ def ziraat_yatirim():
     df['news'] = df['news'].replace('   ', ' ', regex=True)
 
     # ID Number yazdırma
-    old_df = pd.read_csv("ortak.csv")
-    last_id = old_df['ID Number'].iloc[-1]
+    old_df = pd.read_csv("sirket_haberleri.csv")
+    last_id = old_df['id_number'].iloc[-1]
     df['id_number'] = range(last_id + 1, last_id + 1 + len(df))
 
     df = df[['id_number', 'date_list', 'codes', 'news', 'araci_kurum', 'timestamp', 'link']]
@@ -183,5 +183,3 @@ def ziraat_yatirim():
     df.to_csv("sirket_haberleri.csv", encoding="utf-8", index=False, header=False, mode='a')
 
     print("Ziraat Yatırım Menkul Değerler is completed.")
-
-ziraat_yatirim()
