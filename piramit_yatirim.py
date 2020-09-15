@@ -3,6 +3,8 @@ def piramit_yatirim():
     import io
     import re
     from datetime import date
+    import pdfminer
+    from pdfminer.pdfparser import PDFSyntaxError
     from pdfminer.pdfinterp import PDFResourceManager, PDFPageInterpreter
     from pdfminer.pdfpage import PDFPage
     from pdfminer.converter import TextConverter
@@ -10,6 +12,7 @@ def piramit_yatirim():
     import numpy as np
     import pandas as pd
     from itertools import chain
+    from selenium.common.exceptions import NoSuchElementException
     from selenium import webdriver
     from fuzzywuzzy import process
     import datetime
@@ -76,117 +79,128 @@ def piramit_yatirim():
 
     print("Downloading PDF...")
     # PDF'i indirme
-    driver.get("https://www.piramitmenkul.com.tr/Arastirma/Bulten/GUNLUKSTRATEJIBULTEN")
-    href_xpath = '//*[@id="raporTable"]/tbody/tr[1]/td[2]/a'
-    href = driver.find_element_by_xpath(href_xpath)
-    url = href.get_attribute("href")
-    r = requests.get(url)
-    filename = f"piramit_{today}.pdf"
-    open(filename, 'wb').write(r.content)
-    print(f"PDF is downloaded from {url}")
-    driver.close()
+    try:
+        driver.get("https://www.piramitmenkul.com.tr/Arastirma/Bulten/GUNLUKSTRATEJIBULTEN")
+        href_xpath = '//*[@id="raporTable"]/tbody/tr[1]/td[2]/aa'
+        href = driver.find_element_by_xpath(href_xpath)
+        url = href.get_attribute("href")
+        r = requests.get(url)
+        filename = f"piramit_{today}.pdf"
+        open(filename, 'wb').write(r.content)
+        print(f"PDF is downloaded from {url}")
+        driver.close()
 
-    # PDF'i text'e yazdırma
-    piramit_text_list_1 = [pdf_to_text(filename)]
+        # PDF'i text'e yazdırma
+        piramit_text_list_1 = [pdf_to_text(filename)]
 
-    # Düzenleme
-    piramit_text_list_2 = []
-    for element in piramit_text_list_1:
-        piramit_text_list_2.append(element.replace('\n \n', '\n\n'))
+        # Düzenleme
+        piramit_text_list_2 = []
+        for element in piramit_text_list_1:
+            piramit_text_list_2.append(element.replace('\n \n', '\n\n'))
 
-    # Piramit için patternlar
-    haber_text_pattern = '(?<=Şirket Haberleri).*?(?=Ekonomi Haberleri)'
-    sirket_haberleri_pattern_1 = '\([A-Z][A-Z][A-Z][A-Z]+\):.*?(?=\\n\\n)'
+        # Piramit için patternlar
+        haber_text_pattern = '(?<=Şirket Haberleri).*?(?=Ekonomi Haberleri)'
+        sirket_haberleri_pattern_1 = '\([A-Z][A-Z][A-Z][A-Z]+\):.*?(?=\\n\\n)'
 
-    print("Parsing codes and haber...")
-    # Haberlerin olduğu kısmı text'e yazma
-    piramit_haber_text = []
-    for element in piramit_text_list_2:
-        if bool(re.search(haber_text_pattern, element, re.DOTALL)):
-            piramit_haber_text.append(re.findall(haber_text_pattern, element, re.DOTALL))
-        else:
-            print("There is no news in Piramit Menkul Kıymetler today.")
-    piramit_haber_text = flatten(piramit_haber_text)
-    print("Parsing codes and news are completed.")
+        print("Parsing codes and haber...")
+        # Haberlerin olduğu kısmı text'e yazma
 
-    # Şirket Haberlerini çekme
-    piramit_haber_list_1 = []
-    for element in piramit_haber_text:
-        if bool(re.search(sirket_haberleri_pattern_1, element, re.DOTALL)):
-            piramit_haber_list_1.append(re.findall(sirket_haberleri_pattern_1, element, re.DOTALL))
+        piramit_haber_text = []
+        for element in piramit_text_list_2:
+            if bool(re.search(haber_text_pattern, element, re.DOTALL)):
+                piramit_haber_text.append(re.findall(haber_text_pattern, element, re.DOTALL))
+                print("Parsing codes and news are completed.")
+            else:
+                print("There is no news in Piramit Menkul Kıymetler today.")
+        piramit_haber_text = flatten(piramit_haber_text)
 
-    # Haber sayısını hesaplama
-    piramit_lengths = []
-    for element in piramit_haber_list_1:
-        piramit_lengths.append(len(element))
 
-    # Hisse Sembolü ve Haber'i ayırma
-    piramit_haber_list_2 = []
-    for elements in piramit_haber_list_1:
-        for element in elements:
-            piramit_haber_list_2.append(element.split(':', maxsplit=1))
+        # Şirket Haberlerini çekme
+        piramit_haber_list_1 = []
+        for element in piramit_haber_text:
+            if bool(re.search(sirket_haberleri_pattern_1, element, re.DOTALL)):
+                piramit_haber_list_1.append(re.findall(sirket_haberleri_pattern_1, element, re.DOTALL))
 
-    # Tarih, Aracı Kurum, URL ve Timestamp yazdırma
-    piramit_tarih_list = []
-    piramit_araci_kurum_list = []
-    piramit_timestamp_list = []
-    piramit_url_list = []
-    for i in range(len(piramit_lengths)):
-        piramit_tarih_list.append([[today]] * piramit_lengths[i])
-        piramit_araci_kurum_list.append([[araci_kurum]] * piramit_lengths[i])
-        piramit_timestamp_list.append([[timestamp]] * piramit_lengths[i])
-        piramit_url_list.append([[url]] * piramit_lengths[i])
-    print("date_list, araci_kurum, timestamp and link are written.")
+        # Haber sayısını hesaplama
+        piramit_lengths = []
+        for element in piramit_haber_list_1:
+            piramit_lengths.append(len(element))
 
-    # Listeleri tek boyutlu yapma
-    piramit_tarih_list = flatten(piramit_tarih_list)
-    piramit_araci_kurum_list = flatten(piramit_araci_kurum_list)
-    piramit_timestamp_list = flatten(piramit_timestamp_list)
-    piramit_url_list = flatten(piramit_url_list)
+        # Hisse Sembolü ve Haber'i ayırma
+        piramit_haber_list_2 = []
+        for elements in piramit_haber_list_1:
+            for element in elements:
+                piramit_haber_list_2.append(element.split(':', maxsplit=1))
 
-    # Columnları yazdırma
-    col_1_and_2 = pd.DataFrame(piramit_haber_list_2, columns=['codes', 'news'])  # Hisse Sembolü ve Haber
-    col_3 = pd.DataFrame(piramit_tarih_list, columns=['date_list'])  # Tarih
-    col_4 = pd.DataFrame(piramit_araci_kurum_list, columns=['araci_kurum'])  # Aracı Kurum
-    col_5 = pd.DataFrame(piramit_timestamp_list, columns=['timestamp'])  # Timestamp
-    col_6 = pd.DataFrame(piramit_url_list, columns=['link'])  # URL
+        # Tarih, Aracı Kurum, URL ve Timestamp yazdırma
+        piramit_tarih_list = []
+        piramit_araci_kurum_list = []
+        piramit_timestamp_list = []
+        piramit_url_list = []
+        for i in range(len(piramit_lengths)):
+            piramit_tarih_list.append([[today]] * piramit_lengths[i])
+            piramit_araci_kurum_list.append([[araci_kurum]] * piramit_lengths[i])
+            piramit_timestamp_list.append([[timestamp]] * piramit_lengths[i])
+            piramit_url_list.append([[url]] * piramit_lengths[i])
 
-    # Columnları birleştirme
-    df = pd.concat([col_1_and_2, col_3, col_4, col_5, col_6], axis=1)
+        if len(piramit_haber_list_1) > 0:
+            print("date_list, araci_kurum, timestamp and link are written.")
 
-    # Baştaki sondaki boşlukları silme
-    df['codes'] = df['codes'].str.strip()
-    df['news'] = df['news'].str.strip()
+        # Listeleri tek boyutlu yapma
+        piramit_tarih_list = flatten(piramit_tarih_list)
+        piramit_araci_kurum_list = flatten(piramit_araci_kurum_list)
+        piramit_timestamp_list = flatten(piramit_timestamp_list)
+        piramit_url_list = flatten(piramit_url_list)
 
-    # Hisse Sembolü'nden parantezleri çıkarma
-    df['codes'] = df['codes'].str.extract(r"\((.*?)\)", expand=False)
+        # Columnları yazdırma
+        col_1_and_2 = pd.DataFrame(piramit_haber_list_2, columns=['codes', 'news'])  # Hisse Sembolü ve Haber
+        col_3 = pd.DataFrame(piramit_tarih_list, columns=['date_list'])  # Tarih
+        col_4 = pd.DataFrame(piramit_araci_kurum_list, columns=['araci_kurum'])  # Aracı Kurum
+        col_5 = pd.DataFrame(piramit_timestamp_list, columns=['timestamp'])  # Timestamp
+        col_6 = pd.DataFrame(piramit_url_list, columns=['link'])  # URL
 
-    # Aynı haberi birden fazla şirket için yazdırma
-    lens = df['codes'].str.split(',').map(len)
-    df = pd.DataFrame({'codes': chainer_1(df['codes']),
-                       'news': np.repeat(df['news'], lens),
-                       'date_list': np.repeat(df['date_list'], lens),
-                       'araci_kurum': np.repeat(df['araci_kurum'], lens),
-                       'timestamp': np.repeat(df['timestamp'], lens),
-                       'link': np.repeat(df['link'], lens)})
+        # Columnları birleştirme
+        df = pd.concat([col_1_and_2, col_3, col_4, col_5, col_6], axis=1)
 
-    # Satırları düzenleme
-    df = df.replace(r'\s', ' ', regex=True)
+        # Baştaki sondaki boşlukları silme
+        df['codes'] = df['codes'].str.strip()
+        df['news'] = df['news'].str.strip()
 
-    # Fazla boşlukları silme
-    df['news'] = df['news'].replace('  ', ' ', regex=True)
-    df['news'] = df['news'].replace('   ', ' ', regex=True)
+        # Hisse Sembolü'nden parantezleri çıkarma
+        df['codes'] = df['codes'].str.extract(r"\((.*?)\)", expand=False)
 
-    # ID Number yazdırma
-    old_df = pd.read_csv("sirket_haberleri.csv")
-    last_id = old_df['id_number'].iloc[-1]
-    df['id_number'] = range(last_id + 1, last_id + 1 + len(df))
+        # Aynı haberi birden fazla şirket için yazdırma
+        lens = df['codes'].str.split(',').map(len)
+        df = pd.DataFrame({'codes': chainer_1(df['codes']),
+                           'news': np.repeat(df['news'], lens),
+                           'date_list': np.repeat(df['date_list'], lens),
+                           'araci_kurum': np.repeat(df['araci_kurum'], lens),
+                           'timestamp': np.repeat(df['timestamp'], lens),
+                           'link': np.repeat(df['link'], lens)})
 
-    df = df[['id_number', 'date_list', 'codes', 'news', 'araci_kurum', 'timestamp', 'link']]
+        # Satırları düzenleme
+        df = df.replace(r'\s', ' ', regex=True)
 
-    df.to_csv("sirket_haberleri.csv", encoding="utf-8", index=False, header=False, mode='a')
+        # Fazla boşlukları silme
+        df['news'] = df['news'].replace('  ', ' ', regex=True)
+        df['news'] = df['news'].replace('   ', ' ', regex=True)
+
+        # ID Number yazdırma
+        old_df = pd.read_csv("sirket_haberleri.csv")
+        last_id = old_df['id_number'].iloc[-1]
+        df['id_number'] = range(last_id + 1, last_id + 1 + len(df))
+
+        df = df[['id_number', 'date_list', 'codes', 'news', 'araci_kurum', 'timestamp', 'link']]
+
+        df.to_csv("sirket_haberleri.csv", encoding="utf-8", index=False, header=False, mode='a')
+
+
+    except NoSuchElementException:
+        print("URL of the website or the xpath might be changed. Check URL and xpath.")
 
     print("Piramit Menkul Kıymetler is completed.")
+
+
 
 
 

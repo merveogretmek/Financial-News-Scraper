@@ -11,6 +11,7 @@ def vakif_yatirim():
     import pandas as pd
     from itertools import chain
     from selenium import webdriver
+    from selenium.common.exceptions import NoSuchElementException
     from fuzzywuzzy import process
     import datetime
 
@@ -77,110 +78,117 @@ def vakif_yatirim():
 
     print("Downloading PDF...")
     # PDF'i indirme
-    driver.get("http://www.vkyanaliz.com/piyasalara-bakis/gunluk-strateji-bulteni")
-    href_xpath = '//*[@id="article"]/div[2]/div/span[4]/a'
-    href = driver.find_element_by_xpath(href_xpath)
-    url = href.get_attribute("href")
-    r = requests.get(url)
-    filename = f"vakıf_{today}.pdf"
-    open(filename, 'wb').write(r.content)
-    print(f"PDF is downloaded from {url}")
-    driver.close()
+    try:
+        driver.get("http://www.vkyanaliz.com/piyasalara-bakis/gunluk-strateji-bulteni")
+        href_xpath = '//*[@id="article"]/div[2]/div/span[4]/a'
+        href = driver.find_element_by_xpath(href_xpath)
+        url = href.get_attribute("href")
+        r = requests.get(url)
+        filename = f"vakıf_{today}.pdf"
+        open(filename, 'wb').write(r.content)
+        print(f"PDF is downloaded from {url}")
+        driver.close()
 
-    # PDF'i text'e yazdırma
-    vakif_text_list_1 = [pdf_to_text(filename)]
+        # PDF'i text'e yazdırma
+        vakif_text_list_1 = [pdf_to_text(filename)]
 
-    # Düzenleme
-    vakif_text_list_2 = []
-    for element in vakif_text_list_1:
-        vakif_text_list_2.append(element.replace('\n \n', '\n\n'))
+        # Düzenleme
+        vakif_text_list_2 = []
+        for element in vakif_text_list_1:
+            vakif_text_list_2.append(element.replace('\n \n', '\n\n'))
 
-    # Vakıf için patternlar
-    haber_text_pattern = 'Kısa Kısa Haberler'
-    sirket_haberleri_pattern_1 = '\([A-Z][A-Z][A-Z][A-Z]+\).*?(?=\\n\\n)'
+        # Vakıf için patternlar
+        haber_text_pattern = 'Kısa Kısa Haberler'
+        sirket_haberleri_pattern_1 = '\([A-Z][A-Z][A-Z][A-Z]+\).*?(?=\\n\\n)'
 
-    print("Parsing codes and news...")
-    # Şirket Haberlerini çekme
-    vakif_haber_list_1 = []
-    for element in vakif_text_list_2:
-        if bool(re.search(haber_text_pattern, element, re.DOTALL)):
-            vakif_haber_list_1.append(re.findall(sirket_haberleri_pattern_1, element, re.DOTALL))
-        else:
-            print("There is no news in Vakıf Yatırım Menkul Değerler today.")
-    print("Parsing codes and news are completed.")
+        print("Parsing codes and news...")
+        # Şirket Haberlerini çekme
+        vakif_haber_list_1 = []
+        for element in vakif_text_list_2:
+            if bool(re.search(haber_text_pattern, element, re.DOTALL)):
+                vakif_haber_list_1.append(re.findall(sirket_haberleri_pattern_1, element, re.DOTALL))
+                print("Parsing codes and news are completed.")
+            else:
+                print("There is no news in Vakıf Yatırım Menkul Değerler today.")
 
-    # Haber sayısını hesaplama
-    vakif_lengths = []
-    for element in vakif_haber_list_1:
-        vakif_lengths.append(len(element))
 
-    # Hisse Sembolü ve Haber'i ayırma
-    vakif_haber_list_2 = []
-    for elements in vakif_haber_list_1:
-        for element in elements:
-            vakif_haber_list_2.append(element.split(':', maxsplit=1))
+        # Haber sayısını hesaplama
+        vakif_lengths = []
+        for element in vakif_haber_list_1:
+            vakif_lengths.append(len(element))
 
-    # Tarih, Aracı Kurum ve URL yazdırma
-    vakif_tarih_list = []
-    vakif_araci_kurum_list = []
-    vakif_timestamp_list = []
-    vakif_url_list = []
-    for i in range(len(vakif_lengths)):
-        vakif_tarih_list.append([[today]] * vakif_lengths[i])
-        vakif_araci_kurum_list.append([[araci_kurum]] * vakif_lengths[i])
-        vakif_timestamp_list.append([[timestamp]] * vakif_lengths[i])
-        vakif_url_list.append([[url]] * vakif_lengths[i])
-    print("date_list, araci_kurum, timestamp and link are written.")
+        # Hisse Sembolü ve Haber'i ayırma
+        vakif_haber_list_2 = []
+        for elements in vakif_haber_list_1:
+            for element in elements:
+                vakif_haber_list_2.append(element.split(':', maxsplit=1))
 
-    # Listeleri tek boyutlu yapma
-    vakif_tarih_list = flatten(vakif_tarih_list)
-    vakif_araci_kurum_list = flatten(vakif_araci_kurum_list)
-    vakif_timestamp_list = flatten(vakif_timestamp_list)
-    vakif_url_list = flatten(vakif_url_list)
+        # Tarih, Aracı Kurum ve URL yazdırma
+        vakif_tarih_list = []
+        vakif_araci_kurum_list = []
+        vakif_timestamp_list = []
+        vakif_url_list = []
+        for i in range(len(vakif_lengths)):
+            vakif_tarih_list.append([[today]] * vakif_lengths[i])
+            vakif_araci_kurum_list.append([[araci_kurum]] * vakif_lengths[i])
+            vakif_timestamp_list.append([[timestamp]] * vakif_lengths[i])
+            vakif_url_list.append([[url]] * vakif_lengths[i])
 
-    # Columnları yazdırma
-    col_1_and_2 = pd.DataFrame(vakif_haber_list_2, columns=['codes', 'news'])  # Hisse Sembolü ve Haber
-    col_3 = pd.DataFrame(vakif_tarih_list, columns=['date_list'])  # Tarih
-    col_4 = pd.DataFrame(vakif_araci_kurum_list, columns=['araci_kurum'])  # Aracı Kurum
-    col_5 = pd.DataFrame(vakif_timestamp_list, columns=['timestamp'])  # Timestamp
-    col_6 = pd.DataFrame(vakif_url_list, columns=['link'])  # URL
+        if len(vakif_haber_list_1) > 0:
+            print("date_list, araci_kurum, timestamp and link are written.")
+            # Listeleri tek boyutlu yapma
+            vakif_tarih_list = flatten(vakif_tarih_list)
+            vakif_araci_kurum_list = flatten(vakif_araci_kurum_list)
+            vakif_timestamp_list = flatten(vakif_timestamp_list)
+            vakif_url_list = flatten(vakif_url_list)
 
-    # Columnları birleştirme
-    df = pd.concat([col_1_and_2, col_3, col_4, col_5, col_6], axis=1)
+            # Columnları yazdırma
+            col_1_and_2 = pd.DataFrame(vakif_haber_list_2, columns=['codes', 'news'])  # Hisse Sembolü ve Haber
+            col_3 = pd.DataFrame(vakif_tarih_list, columns=['date_list'])  # Tarih
+            col_4 = pd.DataFrame(vakif_araci_kurum_list, columns=['araci_kurum'])  # Aracı Kurum
+            col_5 = pd.DataFrame(vakif_timestamp_list, columns=['timestamp'])  # Timestamp
+            col_6 = pd.DataFrame(vakif_url_list, columns=['link'])  # URL
 
-    df = df.dropna()
+            # Columnları birleştirme
+            df = pd.concat([col_1_and_2, col_3, col_4, col_5, col_6], axis=1)
 
-    # Baştaki sondaki boşlukları silme
-    df['codes'] = df['codes'].str.strip()
-    df['news'] = df['news'].str.strip()
+            df = df.dropna()
 
-    # Aynı haberi birden fazla şirket için yazdırma
-    lens = df['codes'].str.split(',').map(len)
-    df = pd.DataFrame({'codes': chainer_1(df['codes']),
-                       'news': np.repeat(df['news'], lens),
-                       'date_list': np.repeat(df['date_list'], lens),
-                       'araci_kurum': np.repeat(df['araci_kurum'], lens),
-                       'timestamp': np.repeat(df['timestamp'], lens),
-                       'link': np.repeat(df['link'], lens)})
+            # Baştaki sondaki boşlukları silme
+            df['codes'] = df['codes'].str.strip()
+            df['news'] = df['news'].str.strip()
 
-    # Hisse Sembolü'nden parantezleri çıkarma
-    row_count = df.shape[0]
-    if row_count >= 1:
-        df['codes'] = df['codes'].str.extract(r"\((.*?)\)", expand=False)
+            # Aynı haberi birden fazla şirket için yazdırma
+            lens = df['codes'].str.split(',').map(len)
+            df = pd.DataFrame({'codes': chainer_1(df['codes']),
+                               'news': np.repeat(df['news'], lens),
+                               'date_list': np.repeat(df['date_list'], lens),
+                               'araci_kurum': np.repeat(df['araci_kurum'], lens),
+                               'timestamp': np.repeat(df['timestamp'], lens),
+                               'link': np.repeat(df['link'], lens)})
 
-    # Satırları düzenleme
-    df = df.replace(r'\s', ' ', regex=True)
+            # Hisse Sembolü'nden parantezleri çıkarma
+            df['codes'] = df['codes'].str.extract(r"\((.*?)\)", expand=False)
 
-    # Fazla boşlukları silme
-    df['news'] = df['news'].replace('  ', ' ', regex=True)
-    df['news'] = df['news'].replace('   ', ' ', regex=True)
+            # Satırları düzenleme
+            df = df.replace(r'\s', ' ', regex=True)
 
-    # ID Number yazdırma
-    old_df = pd.read_csv("sirket_haberleri.csv")
-    last_id = old_df['id_number'].iloc[-1]
-    df['id_number'] = range(last_id + 1, last_id + 1 + len(df))
-    df = df[['id_number', 'date_list', 'codes', 'news', 'araci_kurum', 'timestamp', 'link']]
+            # Fazla boşlukları silme
+            df['news'] = df['news'].replace('  ', ' ', regex=True)
+            df['news'] = df['news'].replace('   ', ' ', regex=True)
 
-    df.to_csv("sirket_haberleri.csv", encoding="utf-8", index=False, header=False, mode='a')
+            # ID Number yazdırma
+            old_df = pd.read_csv("sirket_haberleri.csv")
+            last_id = old_df['id_number'].iloc[-1]
+            df['id_number'] = range(last_id + 1, last_id + 1 + len(df))
+            df = df[['id_number', 'date_list', 'codes', 'news', 'araci_kurum', 'timestamp', 'link']]
+
+            df.to_csv("sirket_haberleri.csv", encoding="utf-8", index=False, header=False, mode='a')
+
+
+
+    except NoSuchElementException:
+        print("URL of the website or the xpath might be changed. Check URL and xpath.")
 
     print("Vakıf Yatırım Menkul Değerler is completed.")
+
