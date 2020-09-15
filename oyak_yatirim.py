@@ -177,11 +177,13 @@ def oyak_yatirim():
     df['news'] = df['news'].replace('   ', ' ', regex=True)
 
     # ID Number yazdırma
-    df['id_number'] = range(1, 1 + len(df))
+    old_df = pd.read_csv("sirket_haberleri.csv")
+    last_id = old_df['id_number'].iloc[-1]
+    df['id_number'] = range(last_id + 1, last_id + 1 + len(df))
 
     df = df[['id_number', 'date_list', 'codes', 'news', 'araci_kurum', 'timestamp', 'link']]
 
-    df.to_csv("sirket_haberleri.csv", encoding="utf-8", index=False)
+    df.to_csv("sirket_haberleri.csv", encoding="utf-8", index=False, header=False, mode='a')
 
     print("Oyak Yatırım Menkul Değerler is completed.")
 
