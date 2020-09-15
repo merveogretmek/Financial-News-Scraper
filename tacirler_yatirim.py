@@ -64,8 +64,8 @@ def tacirler_yatirim():
 
 
     # Bugün'ün tarihi
-    today = date.today()
-    timestamp = datetime.now()
+    today = datetime.datetime.today().now().date()
+    timestamp = datetime.datetime.today().now().time()
 
     driver_path = '/Users/merveogretmek/Downloads/chromedriver'
     driver = webdriver.Chrome(executable_path = driver_path)
@@ -83,7 +83,7 @@ def tacirler_yatirim():
     r = requests.get(url)
     filename = f"tacirler_{today}.pdf"
     open(filename, 'wb').write(r.content)
-    print("PDF is downloaded.")
+    print(f"PDF is downloaded from {url}")
 
     # PDF'i text'e yazdırma
     tacirler_text_list_1 = [pdf_to_text(filename)]
@@ -96,16 +96,16 @@ def tacirler_yatirim():
     # Tacirler Yatırım için patternlar
     haber_text_pattern = '(?<=Şirket ve Sektör Haberleri).*?(?=Teknik Analiz)'
 
-    print("Parsing Hisse Sembolü and Haber...")
+    print("Parsing codes and news...")
     # Haberlerin olduğu kısmı text'e yazma
     tacirler_haber_text = []
     for element in tacirler_text_list_2:
         if bool(re.search(haber_text_pattern, element, re.DOTALL)):
             tacirler_haber_text.append(re.findall(haber_text_pattern, element, re.DOTALL))
         else:
-            print("Bugün Tacirler Yatırım'da şirket haberi yok.")
+            print("There is no news in Tacirler Yatırım Menkul Kıymetler today.")
     tacirler_haber_text = flatten(tacirler_haber_text)
-    print("Parsing Hisse Sembolü and Haber are completed.")
+    print("Parsing codes and news are completed.")
 
     # Şirket Haberlerini çekme
     tacirler_haber_list_1 = []
@@ -132,29 +132,31 @@ def tacirler_yatirim():
     # Tarih, Aracı Kurum ve URL yazdırma
     tacirler_tarih_list = []
     tacirler_araci_kurum_list = []
-    tacirler_url_list = []
     tacirler_timestamp_list = []
+    tacirler_url_list = []
     for i in range(len(tacirler_lengths)):
         tacirler_tarih_list.append([[today]] * tacirler_lengths[i])
         tacirler_araci_kurum_list.append([[araci_kurum]] * tacirler_lengths[i])
-        tacirler_url_list.append([[url]] * tacirler_lengths[i])
         tacirler_timestamp_list.append([[timestamp]] * tacirler_lengths[i])
-    print("Tarih, Aracı Kurum and Timestamp are written.")
+        tacirler_url_list.append([[url]] * tacirler_lengths[i])
+    print("date_list, araci_kurum, timestamp and link are written.")
 
     # Listeleri tek boyutlu yapma
     tacirler_tarih_list = flatten(tacirler_tarih_list)
     tacirler_araci_kurum_list = flatten(tacirler_araci_kurum_list)
-    tacirler_url_list = flatten(tacirler_url_list)
     tacirler_timestamp_list = flatten(tacirler_timestamp_list)
+    tacirler_url_list = flatten(tacirler_url_list)
 
     # Columnları yazdırma
-    col_1_and_2 = pd.DataFrame(tacirler_haber_list_2, columns=['Hisse Sembolü', 'Haber'])  # Hisse Sembolü ve Haber
-    col_3 = pd.DataFrame(tacirler_tarih_list, columns=['Tarih'])  # Tarih
-    col_4 = pd.DataFrame(tacirler_araci_kurum_list, columns=['Aracı Kurum'])  # Aracı Kurum
-    col_6 = pd.DataFrame(tacirler_timestamp_list, columns=['Timestamp'])  # Timestamp
+    col_1_and_2 = pd.DataFrame(tacirler_haber_list_2, columns=['codes', 'news'])  # Hisse Sembolü ve Haber
+    col_3 = pd.DataFrame(tacirler_tarih_list, columns=['date_list'])  # Tarih
+    col_4 = pd.DataFrame(tacirler_araci_kurum_list, columns=['araci_kurum'])  # Aracı Kurum
+    col_5 = pd.DataFrame(tacirler_timestamp_list, columns=['timestamp'])  # Timestamp
+    col_6 = pd.DataFrame(tacirler_url_list, columns=['link'])  # URL
+
 
     # Columnları birleştirme
-    df = pd.concat([col_1_and_2, col_3, col_4, col_6], axis=1)
+    df = pd.concat([col_1_and_2, col_3, col_4, col_5, col_6], axis=1)
 
     # NaN değerleri silme
     df = df.dropna()
@@ -164,44 +166,44 @@ def tacirler_yatirim():
     # BIST Verisi ile Matchleme
     df_bist = pd.read_csv('hissesembolu.csv', delimiter=';')
 
-    df['Hisse Sembolü'] = df['Hisse Sembolü'].str.upper()
-    df['Hisse Sembolü'] = df['Hisse Sembolü'].str.replace('Ç', 'C')
-    df['Hisse Sembolü'] = df['Hisse Sembolü'].str.replace('Ğ', 'G')
-    df['Hisse Sembolü'] = df['Hisse Sembolü'].str.replace('İ', 'I')
-    df['Hisse Sembolü'] = df['Hisse Sembolü'].str.replace('Ö', 'O')
-    df['Hisse Sembolü'] = df['Hisse Sembolü'].str.replace('Ş', 'S')
-    df['Hisse Sembolü'] = df['Hisse Sembolü'].str.replace('Ü', 'U')
+    df['codes'] = df['codes'].str.upper()
+    df['codes'] = df['codes'].str.replace('Ç', 'C')
+    df['codes'] = df['codes'].str.replace('Ğ', 'G')
+    df['codes'] = df['codes'].str.replace('İ', 'I')
+    df['codes'] = df['codes'].str.replace('Ö', 'O')
+    df['codes'] = df['codes'].str.replace('Ş', 'S')
+    df['codes'] = df['codes'].str.replace('Ü', 'U')
 
-    df = df.rename(columns={'Hisse Sembolü': 'BULTEN ADI'})
+    df = df.rename(columns={'codes': 'BULTEN ADI'})
     df = fuzzy_merge(df, df_bist, 'BULTEN ADI', 'BULTEN ADI', threshold=85)
     df = pd.merge(df, df_bist, on=['BULTEN ADI'])
-    df = df[["ISLEM  KODU", "Haber", "Tarih", "Aracı Kurum", "Timestamp"]]
-    df = df.rename(columns={'ISLEM  KODU': 'Hisse Sembolü'})
-    df['Hisse Sembolü'] = [x.split('.')[0] for x in df['Hisse Sembolü']]
+    df = df[["ISLEM  KODU", "news", "date_list", "araci_kurum", "timestamp", "link"]]
+    df = df.rename(columns={'ISLEM  KODU': 'codes'})
+    df['codes'] = [x.split('.')[0] for x in df['codes']]
 
     # Baştaki sondaki boşlukları silme
     row_count = df.shape[0]
     if row_count >= 1:
-        df['Hisse Sembolü'] = df['Hisse Sembolü'].str.strip()
-        df['Haber'] = df['Haber'].str.strip()
+        df['codes'] = df['codes'].str.strip()
+        df['news'] = df['news'].str.strip()
 
     # Satırları düzenleme
     df = df.replace(r'\s', ' ', regex=True)
 
     # Fazla boşlukları silme
-    df['Haber'] = df['Haber'].replace('  ', ' ', regex=True)
-    df['Haber'] = df['Haber'].replace('   ', ' ', regex=True)
+    df['news'] = df['news'].replace('  ', ' ', regex=True)
+    df['news'] = df['news'].replace('   ', ' ', regex=True)
 
     # ID Number yazdırma
     old_df = pd.read_csv("ortak.csv")
-    last_id = old_df['ID Number'].iloc[-1]
-    df['ID Number'] = range(last_id + 1, last_id + 1 + len(df))
+    last_id = old_df['id_number'].iloc[-1]
+    df['id_number'] = range(last_id + 1, last_id + 1 + len(df))
 
     second_row_count = df.shape[0]
 
-    df = df[['ID Number', 'Tarih', 'Hisse Sembolü', 'Haber', 'Aracı Kurum', 'Timestamp']]
+    df = df[['id_number', 'date_list', 'codes', 'news', 'araci_kurum', 'timestamp', 'link']]
     print(f"Tacirler Yatırım'da {first_row_count} haberden {second_row_count} tanesi yazdırıldı.")
 
     df.to_csv("sirket_haberleri.csv", encoding="utf-8", index=False, header=False, mode='a')
 
-    print("Tacirler Yatırım is completed.")
+    print("Tacirler Yatırım Menkul Kıymetler is completed.")

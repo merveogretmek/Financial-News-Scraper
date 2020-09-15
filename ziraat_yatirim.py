@@ -65,8 +65,8 @@ def ziraat_yatirim():
 
 
     # Bugün'ün tarihi
-    today = date.today()
-    timestamp = datetime.now()
+    today = datetime.datetime.today().now().date()
+    timestamp = datetime.datetime.today().now().time()
 
     driver_path = '/Users/merveogretmek/Downloads/chromedriver'
     driver = webdriver.Chrome(executable_path = driver_path)
@@ -82,7 +82,7 @@ def ziraat_yatirim():
     r = requests.get(url)
     filename = f"ziraat_{today}.pdf"
     open(filename, 'wb').write(r.content)
-    print("PDF is downloaded.")
+    print(f"PDF is downloaded from {url}")
 
     # PDF'i text'e yazdırma
     ziraat_text_list_1 = [pdf_to_text(filename)]
@@ -96,7 +96,7 @@ def ziraat_yatirim():
     sirket_haberleri_pattern_1 = '\([A-Z][A-Z][A-Z][A-Z]+,.*?(?=\\n\\n)'
     sirket_haberleri_pattern_2 = '\([A-Z][A-Z][A-Z][A-Z]+\).*?(?=\\n\\n)'
 
-    print("Parsing Hisse Sembolü and Haber...")
+    print("Parsing codes and Haber...")
     # Şirket Haberlerini çekme
     ziraat_haber_list_1 = []
     for element in ziraat_text_list_2:
@@ -104,8 +104,8 @@ def ziraat_yatirim():
             ziraat_haber_list_1.append(re.findall(sirket_haberleri_pattern_1, element, re.DOTALL))
             ziraat_haber_list_1.append(re.findall(sirket_haberleri_pattern_2, element, re.DOTALL))
         else:
-            print("Bugün Ziraat Yatırım'da şirket haberi yok.")
-    print("Parsing Hisse Sembolü and Haber are completed.")
+            print("There is no news in Ziraat Yatırım Menkul Değerler today.")
+    print("Parsing codes and Haber are completed.")
 
     # Haber sayısını hesaplama
     ziraat_lengths = []
@@ -128,7 +128,7 @@ def ziraat_yatirim():
         ziraat_araci_kurum_list.append([[araci_kurum]] * ziraat_lengths[i])
         ziraat_url_list.append([[url]] * ziraat_lengths[i])
         ziraat_timestamp_list.append([[timestamp]] * ziraat_lengths[i])
-    print("Tarih, Aracı Kurum and Timestamp are written.")
+    print("date_list,  and Timestamp are written.")
 
     # Listeleri tek boyutlu yapma
     ziraat_tarih_list = flatten(ziraat_tarih_list)
@@ -137,49 +137,51 @@ def ziraat_yatirim():
     ziraat_timestamp_list = flatten(ziraat_timestamp_list)
 
     # Columnları yazdırma
-    col_1_and_2 = pd.DataFrame(ziraat_haber_list_2, columns=['Hisse Sembolü', 'Haber'])  # Hisse Sembolü ve Haber
-    col_3 = pd.DataFrame(ziraat_tarih_list, columns=['Tarih'])  # Tarih
-    col_4 = pd.DataFrame(ziraat_araci_kurum_list, columns=['Aracı Kurum'])  # Aracı Kurum
-    col_6 = pd.DataFrame(ziraat_timestamp_list, columns=['Timestamp'])  # Timestamp
+    col_1_and_2 = pd.DataFrame(ziraat_haber_list_2, columns=['codes', 'news'])  # Hisse Sembolü ve Haber
+    col_3 = pd.DataFrame(ziraat_tarih_list, columns=['date_list'])  # Tarih
+    col_4 = pd.DataFrame(ziraat_araci_kurum_list, columns=['araci_kurum'])  # Aracı Kurum
+    col_5 = pd.DataFrame(ziraat_timestamp_list, columns=['timestamp'])  # Timestamp
+    col_6 = pd.DataFrame(ziraat_url_list, columns=['link'])  # URL
 
     # Columnları birleştirme
-    df = pd.concat([col_1_and_2, col_3, col_4, col_6], axis=1)
+    df = pd.concat([col_1_and_2, col_3, col_4, col_5, col_6], axis=1)
     df = df.dropna()
 
     # Hisse Sembolü'nden parantezleri çıkarma
-    df['Hisse Sembolü'] = df['Hisse Sembolü'].str.extract(r"\((.*?)\)", expand=False)
+    df['codes'] = df['codes'].str.extract(r"\((.*?)\)", expand=False)
 
     # Aynı haberi birden fazla şirket için yazdırma
-    lens = df['Hisse Sembolü'].str.split(',').map(len)
-    df = pd.DataFrame({'Hisse Sembolü': chainer_1(df['Hisse Sembolü']),
-                       'Haber': np.repeat(df['Haber'], lens),
-                       'Tarih': np.repeat(df['Tarih'], lens),
-                       'Aracı Kurum': np.repeat(df['Aracı Kurum'], lens),
-                       'Timestamp': np.repeat(df['Timestamp'], lens)})
+    lens = df['codes'].str.split(',').map(len)
+    df = pd.DataFrame({'codes': chainer_1(df['codes']),
+                       'news': np.repeat(df['news'], lens),
+                       'date_list': np.repeat(df['date_list'], lens),
+                       'araci_kurum': np.repeat(df['araci_kurum'], lens),
+                       'timestamp': np.repeat(df['timestamp'], lens),
+                       'link': np.repeat(df['link'], lens)})
 
     # Baştaki sondaki boşlukları silme
-    df['Hisse Sembolü'] = df['Hisse Sembolü'].str.strip()
-    df['Haber'] = df['Haber'].str.strip()
+    df['codes'] = df['codes'].str.strip()
+    df['news'] = df['news'].str.strip()
 
     # Hisse sembolü dışındakileri silme
-    df = df[df['Hisse Sembolü'].str.contains('[A-Z][A-Z][A-Z][A-Z]+')]
+    df = df[df['codes'].str.contains('[A-Z][A-Z][A-Z][A-Z]+')]
 
     # Satırları düzenleme
     df = df.replace(r'\s', ' ', regex=True)
 
     # Fazla boşlukları silme
-    df['Haber'] = df['Haber'].replace('  ', ' ', regex=True)
-    df['Haber'] = df['Haber'].replace('   ', ' ', regex=True)
+    df['news'] = df['news'].replace('  ', ' ', regex=True)
+    df['news'] = df['news'].replace('   ', ' ', regex=True)
 
     # ID Number yazdırma
     old_df = pd.read_csv("ortak.csv")
     last_id = old_df['ID Number'].iloc[-1]
-    df['ID Number'] = range(last_id + 1, last_id + 1 + len(df))
+    df['id_number'] = range(last_id + 1, last_id + 1 + len(df))
 
-    df = df[['ID Number', 'Tarih', 'Hisse Sembolü', 'Haber', 'Aracı Kurum', 'Timestamp']]
+    df = df[['id_number', 'date_list', 'codes', 'news', 'araci_kurum', 'timestamp', 'link']]
 
-    df.to_csv("deneme.csv", encoding="utf-8", index=False)
+    df.to_csv("sirket_haberleri.csv", encoding="utf-8", index=False, header=False, mode='a')
 
-    print("Ziraat Yatırım is completed.")
+    print("Ziraat Yatırım Menkul Değerler is completed.")
 
 ziraat_yatirim()

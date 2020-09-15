@@ -12,7 +12,7 @@ def oyak_yatirim():
     from itertools import chain
     from selenium import webdriver
     from fuzzywuzzy import process
-    from datetime import datetime
+    import datetime
 
     print('Modules imported.')
 
@@ -65,8 +65,8 @@ def oyak_yatirim():
 
 
     # Bugün'ün tarihi
-    today = date.today()
-    timestamp = datetime.now()
+    today = datetime.datetime.today().now().date()
+    timestamp = datetime.datetime.today().now().time()
 
     # OYAK YATIRIM MENKUL DEĞERLER A.Ş.
 
@@ -79,8 +79,8 @@ def oyak_yatirim():
     r = requests.get(url)
     filename = f"oyak_{today}.pdf"
     open(filename, 'wb').write(r.content)
-    print("PDF is downloaded.")
-
+    print(f"PDF is downloaded from {url}")
+    
     # PDF'i text'e yazdırma
     oyak_text_list_1 = [pdf_to_text(filename)]
 
@@ -94,14 +94,14 @@ def oyak_yatirim():
     sirket_haberleri = '(?<=ŞİRKET HABERLERİ).*?(?=[A-Z]+\s[A-Z][A-Z][A-Z][A-Z][A-Z][A-Z]+)'
     sirket_haberleri_pattern_1 = '[A-Z][A-Z][A-Z][A-Z]+:.*?(?=\\n\\n)'
 
-    print("Parsing Hisse Sembolü and Haber...")
+    print("Parsing codes and news...")
     # Haberlerin olduğu kısmı text'e yazma
     oyak_haber_text_1 = []
     for element in oyak_text_list_2:
         if bool(re.search(sirket_haberleri, element, re.DOTALL)):
             oyak_haber_text_1.append(re.findall(sirket_haberleri, element, re.DOTALL)[1])
-        else: print("Bugün Oyak Yatırım'da şirket haberi yok.")
-    print("Parsing Hisse Sembolü and Haber are completed.")
+        else: print("There is no news in Oyak Yatırım Menkul Değerler today.")
+    print("Parsing codes and news are completed.")
 
     # Şirket Haberlerini çekme
     oyak_haber_list_1 = []
@@ -132,50 +132,56 @@ def oyak_yatirim():
     oyak_tarih_list = []
     oyak_araci_kurum_list = []
     oyak_timestamp_list = []
+    oyak_url_list = []
     for i in range(len(oyak_lengths)):
         oyak_tarih_list.append([[today]] * oyak_lengths[i])
         oyak_araci_kurum_list.append([[araci_kurum]] * oyak_lengths[i])
         oyak_timestamp_list.append([[timestamp]] * oyak_lengths[i])
-    print("Tarih, Aracı Kurum and Timestamp are written.")
+        oyak_url_list.append([[url]] * oyak_lengths[i])
+    print("date_list, araci_kurum, timestamp and link are written.")
 
     # Listeleri tek boyutlu yapma
     oyak_tarih_list = flatten(oyak_tarih_list)
     oyak_araci_kurum_list = flatten(oyak_araci_kurum_list)
     oyak_timestamp_list = flatten(oyak_timestamp_list)
+    oyak_url_list = flatten(oyak_url_list)
 
     # Columnları yazdırma
-    col_1_and_2 = pd.DataFrame(oyak_haber_list_2, columns = ['Hisse Sembolü','Haber']) # Hisse Sembolü ve Haber
-    col_3 = pd.DataFrame(oyak_tarih_list, columns = ['Tarih']) # Tarih
-    col_4 = pd.DataFrame(oyak_araci_kurum_list, columns = ['Aracı Kurum']) # Aracı Kurum
-    col_5 = pd.DataFrame(oyak_timestamp_list, columns = ['Timestamp']) # Timestamp
+    col_1_and_2 = pd.DataFrame(oyak_haber_list_2, columns = ['codes','news']) # Hisse Sembolü ve Haber
+    col_3 = pd.DataFrame(oyak_tarih_list, columns = ['date_list']) # Tarih
+    col_4 = pd.DataFrame(oyak_araci_kurum_list, columns = ['araci_kurum']) # Aracı Kurum
+    col_5 = pd.DataFrame(oyak_timestamp_list, columns = ['timestamp']) # Timestamp
+    col_6 = pd.DataFrame(oyak_url_list, columns=['link'])  # URL
 
     # Columnları birleştirme
-    df = pd.concat([col_1_and_2,col_3,col_4,col_5], axis= 1)
+    df = pd.concat([col_1_and_2,col_3,col_4,col_5,col_6], axis= 1)
 
     # Baştaki sondaki boşlukları silme
-    df['Hisse Sembolü'] = df['Hisse Sembolü'].str.strip()
-    df['Haber'] = df['Haber'].str.strip()
+    df['codes'] = df['codes'].str.strip()
+    df['news'] = df['news'].str.strip()
 
     # Aynı haberi birden fazla şirket için yazdırma
-    lens = df['Hisse Sembolü'].str.split('/').map(len)
-    df = pd.DataFrame({'Hisse Sembolü' : chainer_2(df['Hisse Sembolü']),
-                        'Haber': np.repeat(df['Haber'], lens),
-                         'Tarih': np.repeat(df['Tarih'], lens),
-                       'Aracı Kurum' : np.repeat(df['Aracı Kurum'],lens),
-                       'Timestamp' : np.repeat(df['Timestamp'],lens)})
+    lens = df['codes'].str.split('/').map(len)
+    df = pd.DataFrame({'codes' : chainer_2(df['codes']),
+                        'news': np.repeat(df['news'], lens),
+                         'date_list': np.repeat(df['date_list'], lens),
+                       'araci_kurum' : np.repeat(df['araci_kurum'], lens),
+                       'timestamp' : np.repeat(df['timestamp'], lens),
+                       'link' : np.repeat(df['link'], lens)})
 
     # Satırları düzenleme
     df = df.replace(r'\s', ' ', regex=True)
 
     # Fazla boşlukları silme
-    df['Haber'] = df['Haber'].replace('  ', ' ', regex=True)
-    df['Haber'] = df['Haber'].replace('   ', ' ', regex=True)
+    df['news'] = df['news'].replace('  ', ' ', regex=True)
+    df['news'] = df['news'].replace('   ', ' ', regex=True)
 
     # ID Number yazdırma
-    df['ID Number'] = range(1, 1 + len(df))
+    df['id_number'] = range(1, 1 + len(df))
 
-    df = df[['ID Number', 'Tarih', 'Hisse Sembolü', 'Haber', 'Aracı Kurum', 'Timestamp']]
+    df = df[['id_number', 'date_list', 'codes', 'news', 'araci_kurum', 'timestamp', 'link']]
 
     df.to_csv("sirket_haberleri.csv", encoding="utf-8", index=False, header=False, mode='a')
 
-    print("Oyak Yatırım is completed.")
+    print("Oyak Yatırım Menkul Değerler is completed.")
+
