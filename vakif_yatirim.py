@@ -136,6 +136,7 @@ def vakif_yatirim():
 
         if len(vakif_haber_list_1) > 0:
             print("date_list, araci_kurum, timestamp and link are written.")
+
             # Listeleri tek boyutlu yapma
             vakif_tarih_list = flatten(vakif_tarih_list)
             vakif_araci_kurum_list = flatten(vakif_araci_kurum_list)
@@ -183,6 +184,18 @@ def vakif_yatirim():
             df['id_number'] = range(last_id + 1, last_id + 1 + len(df))
             df = df[['id_number', 'date_list', 'codes', 'news', 'araci_kurum', 'timestamp', 'link']]
 
+            first_row_count = df.shape[0]
+
+            # Hisse Sembolü kontrolü
+            df['codes'] = df['codes'].astype(str) + '.E'
+            df_bist = pd.read_csv('hissesembolu.csv', delimiter=';')
+            df_merge = fuzzy_merge(df, df_bist, 'codes', "ISLEM  KODU", threshold=100)
+            df = df_merge[['id_number', 'date_list', 'codes', 'news', 'araci_kurum', 'timestamp', 'link']]
+            df['codes'] = df['codes'].str.strip('.E')
+
+            second_row_count = df.shape[0]
+            print(f"{second_row_count} news passed the Stock Name Test from total of {first_row_count} news.")
+
             df.to_csv("sirket_haberleri.csv", encoding="utf-8", index=False, header=False, mode='a')
 
 
@@ -191,4 +204,5 @@ def vakif_yatirim():
         print("URL of the website or the xpath might be changed. Check URL and xpath.")
 
     print("Vakıf Yatırım Menkul Değerler is completed.")
+
 

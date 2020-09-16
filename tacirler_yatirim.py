@@ -147,75 +147,90 @@ def tacirler_yatirim():
         if len(tacirler_haber_list_1) > 0:
            print("date_list, araci_kurum, timestamp and link are written.")
 
-        # Listeleri tek boyutlu yapma
-        tacirler_tarih_list = flatten(tacirler_tarih_list)
-        tacirler_araci_kurum_list = flatten(tacirler_araci_kurum_list)
-        tacirler_timestamp_list = flatten(tacirler_timestamp_list)
-        tacirler_url_list = flatten(tacirler_url_list)
+           # Listeleri tek boyutlu yapma
+           tacirler_tarih_list = flatten(tacirler_tarih_list)
+           tacirler_araci_kurum_list = flatten(tacirler_araci_kurum_list)
+           tacirler_timestamp_list = flatten(tacirler_timestamp_list)
+           tacirler_url_list = flatten(tacirler_url_list)
 
-        # Columnları yazdırma
-        col_1_and_2 = pd.DataFrame(tacirler_haber_list_2, columns=['codes', 'news'])  # Hisse Sembolü ve Haber
-        col_3 = pd.DataFrame(tacirler_tarih_list, columns=['date_list'])  # Tarih
-        col_4 = pd.DataFrame(tacirler_araci_kurum_list, columns=['araci_kurum'])  # Aracı Kurum
-        col_5 = pd.DataFrame(tacirler_timestamp_list, columns=['timestamp'])  # Timestamp
-        col_6 = pd.DataFrame(tacirler_url_list, columns=['link'])  # URL
+           # Columnları yazdırma
+           col_1_and_2 = pd.DataFrame(tacirler_haber_list_2, columns=['codes', 'news'])  # Hisse Sembolü ve Haber
+           col_3 = pd.DataFrame(tacirler_tarih_list, columns=['date_list'])  # Tarih
+           col_4 = pd.DataFrame(tacirler_araci_kurum_list, columns=['araci_kurum'])  # Aracı Kurum
+           col_5 = pd.DataFrame(tacirler_timestamp_list, columns=['timestamp'])  # Timestamp
+           col_6 = pd.DataFrame(tacirler_url_list, columns=['link'])  # URL
 
-        # Columnları birleştirme
-        df = pd.concat([col_1_and_2, col_3, col_4, col_5, col_6], axis=1)
+           # Columnları birleştirme
+           df = pd.concat([col_1_and_2, col_3, col_4, col_5, col_6], axis=1)
 
-        # NaN değerleri silme
-        df = df.dropna()
+           # NaN değerleri silme
+           df = df.dropna()
 
-        first_row_count = df.shape[0]
+           first_row_count = df.shape[0]
 
-        # BIST Verisi ile Matchleme
-        df_bist = pd.read_csv('hissesembolu.csv', delimiter=';')
+           # BIST Verisi ile Matchleme
+           df_bist = pd.read_csv('hissesembolu.csv', delimiter=';')
 
-        df['codes'] = df['codes'].str.upper()
-        df['codes'] = df['codes'].str.replace('Ç', 'C')
-        df['codes'] = df['codes'].str.replace('Ğ', 'G')
-        df['codes'] = df['codes'].str.replace('İ', 'I')
-        df['codes'] = df['codes'].str.replace('Ö', 'O')
-        df['codes'] = df['codes'].str.replace('Ş', 'S')
-        df['codes'] = df['codes'].str.replace('Ü', 'U')
+           df['codes'] = df['codes'].str.upper()
+           df['codes'] = df['codes'].str.replace('Ç', 'C')
+           df['codes'] = df['codes'].str.replace('Ğ', 'G')
+           df['codes'] = df['codes'].str.replace('İ', 'I')
+           df['codes'] = df['codes'].str.replace('Ö', 'O')
+           df['codes'] = df['codes'].str.replace('Ş', 'S')
+           df['codes'] = df['codes'].str.replace('Ü', 'U')
 
-        df = df.rename(columns={'codes': 'BULTEN ADI'})
-        df = fuzzy_merge(df, df_bist, 'BULTEN ADI', 'BULTEN ADI', threshold=85)
-        df = pd.merge(df, df_bist, on=['BULTEN ADI'])
-        df = df[["ISLEM  KODU", "news", "date_list", "araci_kurum", "timestamp", "link"]]
-        df = df.rename(columns={'ISLEM  KODU': 'codes'})
-        df['codes'] = [x.split('.')[0] for x in df['codes']]
+           df = df.rename(columns={'codes': 'BULTEN ADI'})
+           df = fuzzy_merge(df, df_bist, 'BULTEN ADI', 'BULTEN ADI', threshold=85)
+           df = pd.merge(df, df_bist, on=['BULTEN ADI'])
+           df = df[["ISLEM  KODU", "news", "date_list", "araci_kurum", "timestamp", "link"]]
+           df = df.rename(columns={'ISLEM  KODU': 'codes'})
+           df['codes'] = [x.split('.')[0] for x in df['codes']]
 
-        # Baştaki sondaki boşlukları silme
-        row_count = df.shape[0]
-        if row_count >= 1:
-            df['codes'] = df['codes'].str.strip()
-            df['news'] = df['news'].str.strip()
+           # Baştaki sondaki boşlukları silme
+           row_count = df.shape[0]
+           if row_count >= 1:
+               df['codes'] = df['codes'].str.strip()
+               df['news'] = df['news'].str.strip()
 
-        # Satırları düzenleme
-        df = df.replace(r'\s', ' ', regex=True)
+           # Satırları düzenleme
+           df = df.replace(r'\s', ' ', regex=True)
 
-        # Fazla boşlukları silme
-        df['news'] = df['news'].replace('  ', ' ', regex=True)
-        df['news'] = df['news'].replace('   ', ' ', regex=True)
+           # Fazla boşlukları silme
+           df['news'] = df['news'].replace('  ', ' ', regex=True)
+           df['news'] = df['news'].replace('   ', ' ', regex=True)
 
-        # ID Number yazdırma
-        old_df = pd.read_csv("sirket_haberleri.csv")
-        last_id = old_df['id_number'].iloc[-1]
-        df['id_number'] = range(last_id + 1, last_id + 1 + len(df))
+           # ID Number yazdırma
+           old_df = pd.read_csv("sirket_haberleri.csv")
+           last_id = old_df['id_number'].iloc[-1]
+           df['id_number'] = range(last_id + 1, last_id + 1 + len(df))
 
-        second_row_count = df.shape[0]
+           second_row_count = df.shape[0]
 
-        df = df[['id_number', 'date_list', 'codes', 'news', 'araci_kurum', 'timestamp', 'link']]
-        print(f"{second_row_count} news are written from total of {first_row_count} news in Tacirler Yatırım Menkul Kıymetler.")
+           df = df[['id_number', 'date_list', 'codes', 'news', 'araci_kurum', 'timestamp', 'link']]
+           print(f"{second_row_count} news are written from total of {first_row_count} news in Tacirler Yatırım Menkul Kıymetler.")
 
-        df.to_csv("sirket_haberleri.csv", encoding="utf-8", index=False, header=False, mode='a')
+           first_row_count = df.shape[0]
+
+           # Hisse Sembolü kontrolü
+           df['codes'] = df['codes'].astype(str) + '.E'
+           df_bist = pd.read_csv('hissesembolu.csv', delimiter=';')
+           df_merge = fuzzy_merge(df, df_bist, 'codes', "ISLEM  KODU", threshold=100)
+           df = df_merge[['id_number', 'date_list', 'codes', 'news', 'araci_kurum', 'timestamp', 'link']]
+           df['codes'] = df['codes'].str.strip('.E')
+
+           second_row_count = df.shape[0]
+           print(f"{second_row_count} news passed the Stock Name Test from total of {first_row_count} news.")
+
+           df.to_csv("sirket_haberleri.csv", encoding="utf-8", index=False, header=False, mode='a')
+
+
 
     except NoSuchElementException:
         print("URL of the website or the xpath might be changed. Check URL and xpath.")
 
 
     print("Tacirler Yatırım Menkul Kıymetler is completed.")
+
 
 
 
