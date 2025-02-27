@@ -36,14 +36,8 @@ Each script extracts the relevant “company news” section from the PDF, ident
   - selenium
 - Chromedriver
 
-## Setup Instructions
 
-1. **Clone the Repository**
-
-```bash
-git clone https://github.com/yourusername/yourrepo.git
-cd yourrepo
-```
+Feel free to open issues or submit pull requests if you discover bugs or want to add new features.
 
 
 
